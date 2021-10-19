@@ -6,8 +6,7 @@ const ethUtil = require("./eth-util")
 
 
 const functions = {
-  ...klimaUtil,
-  ...ethUtil
+  ...klimaUtil
 }
 
 const botOptions = (process.env.DEBUG || "").toLowerCase() === "true" ? {
