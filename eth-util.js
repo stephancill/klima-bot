@@ -1,4 +1,4 @@
-const {provider, getQuoteFromLP, daiEth } = require("./util")
+const {provider, getQuoteFromLP, usdcEth } = require("./util")
 
 function ethFormatter(value, usd) {
   return usd ? 
@@ -14,13 +14,13 @@ async function _gasToEth(gas, price) {
 }
 
 async function gasToEth(gas, price) {
-  const usdEth = await getQuoteFromLP(daiEth)
+  const usdEth = await getQuoteFromLP(usdcEth)
   const ethValue = await _gasToEth(gas, price)
   return ethFormatter(ethValue, usdEth)
 }
 
 async function gasPrice() {
-  const usdEth = await getQuoteFromLP(daiEth)
+  const usdEth = await getQuoteFromLP(usdcEth)
   const price = await provider.getGasPrice()
 
   const transferCost = await _gasToEth(26000, price)

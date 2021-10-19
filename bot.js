@@ -1,12 +1,12 @@
 require("dotenv").config()
 const replaceAll = require('string.prototype.replaceall')
 const TelegramBot = require("node-telegram-bot-api")
-const ohmUtil = require("./ohm-util")
+const klimaUtil = require("./klima-util")
 const ethUtil = require("./eth-util")
 
 
 const functions = {
-  ...ohmUtil,
+  ...klimaUtil,
   ...ethUtil
 }
 

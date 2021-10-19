@@ -1,7 +1,7 @@
 const {ethers} = require("ethers")
 const LPABI = require("./abi/dai-ohm-lp.json")
 
-const daiEth = "0xc3d03e4f041fd4cd388c549ee2a29a9e5075882f"
+const usdcEth = "0x34965ba0ac2451a34a0471f04cca3f990b8dea27"
 const provider = new ethers.providers.JsonRpcProvider(process.env.JSON_RPC_PROVIDER_URL)
 
 async function formatUSD(value) {
@@ -25,7 +25,7 @@ async function getQuoteFromLP(lpAddress) {
 
 module.exports = {
   provider, 
-  daiEth, 
+  usdcEth, 
   getQuoteFromLP,
   formatUSD
 }

@@ -1,5 +1,5 @@
-const EPOCH_INTERVAL = 2200
-const BLOCK_RATE_SECONDS = 13.14
+const EPOCH_INTERVAL = 11520
+const BLOCK_RATE_SECONDS = 2.25
 
 function prettifySeconds(seconds, resolution) {
   if (seconds !== 0 && !seconds) {
