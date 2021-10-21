@@ -163,7 +163,9 @@ async function getStakedBalance(address) {
 
 async function timeUntilRebase() {
   const currentBlock = await provider.getBlockNumber()
-  const rebaseBlock = helpers.getRebaseBlock(currentBlock)
+  const stakingContract = new ethers.Contract(stakingAddress, stakingABI, provider);
+  const epoch = await stakingContract.epoch();
+  const rebaseBlock = epoch.endBlock
   const seconds = helpers.secondsUntilBlock(currentBlock, rebaseBlock)
   return helpers.prettifySeconds(seconds)
 }
