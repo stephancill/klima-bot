@@ -121,13 +121,26 @@ async function daysToGetEthValue(address, ethValue) {
   const klimaBalance = await _getStakedBalance(address)
   const {KLIMA_ETH} = await getKlimaPrice()
   const {stakingRebase} = await getStakingStats()
-  const requiredOhmBalance = ethValue / KLIMA_ETH
+  const requiredKlimaBalance = ethValue / KLIMA_ETH
   
-  const days = Math.log(requiredOhmBalance/klimaBalance) / Math.log(1+stakingRebase) / 3
+  const days = Math.log(requiredKlimaBalance/klimaBalance) / Math.log(1+stakingRebase) / 3
   let targetDate = new Date()
   targetDate.setDate(targetDate.getDate() + Math.round(days))
 
-  return {ethValue, days, targetDate, klimaBalance: klimaBalance, requiredOhmBalance, stakingRebase, KLIMA_ETH}
+  return {ethValue, days, targetDate, klimaBalance: klimaBalance, requiredOhmBalance: requiredKlimaBalance, stakingRebase, KLIMA_ETH}
+}
+
+async function daysToGetUsdValue(address, usdValue) {
+  const klimaBalance = await _getStakedBalance(address)
+  const {USDC_KLIMA} = await getKlimaPrice()
+  const {stakingRebase} = await getStakingStats()
+  const requiredKlimaBalance = usdValue / USDC_KLIMA
+  
+  const days = Math.log(requiredKlimaBalance/klimaBalance) / Math.log(1+stakingRebase) / 3
+  let targetDate = new Date()
+  targetDate.setDate(targetDate.getDate() + Math.round(days))
+
+  return {usdValue, days, targetDate, klimaBalance: klimaBalance, requiredOhmBalance: requiredKlimaBalance, stakingRebase, USDC_KLIMA}
 }
 
 async function daysToGetUSDValue(address, usdValue) {
@@ -219,7 +232,8 @@ module.exports = {
   timeUntilRebase, 
   getKlimaBalanceAfterDays, 
   getEthValueAfterDays, 
-  daysToGetEthValue, 
+  daysToGetEthValue,
+  daysToGetUsdValue, 
   daysToGetKlimaBalance,
   daysToGetReward,
   daysToGetUSDValue,
