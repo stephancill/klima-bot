@@ -2,17 +2,18 @@ const {ethers} = require("ethers")
 const helpers = require("./helpers")
 
 const sKlimaABI = require("./abi/sohm.json")
-const circulatingSupplyABI = require("./abi/circulating-supply-contract.json")
 const stakingABI = require("./abi/staking-contract.json")
+const LPABI = require("./abi/dai-ohm-lp.json")
 const {provider, getQuoteFromLP, usdcEth, formatUSD} = require("./util")
 
 // Addresses: https://klimadao.notion.site/Official-addresses-7c8efb747bcc4a13a6220084243b7b8a
 const circulatingSupplyAddress = "0x0EFFf9199Aa1Ac3C3E34E957567C1BE8bF295034"
 const sKlimaAddress = "0xb0C22d8D350C67420f06F48936654f567C73E8C8"
 const stakingAddress = "0x25d28a24ceb6f81015bb0b2007d795acac411b4d"
-// const ohmDai = "0x34d7d7Aaf50AD4944B70B320aCB24C95fa2def7c"
-const bctKlima = "0x9803c7ae526049210a1725f7487af26fe2c24614"
-const usdcBct = "0x1e67124681b402064cd0abe8ed1b5c79d2e02f64"
+const bctAddress = "0x2f800db0fdb5223b3c3f354886d907a671414a7f"
+const bctKlima = "0x9803c7ae526049210a1725f7487af26fe2c24614" // token0 = BCT
+const usdcBct = "0x1e67124681b402064cd0abe8ed1b5c79d2e02f64" // token1 = BCT
+const treasuryAddress = "0x7Dd4f0B986F032A44F913BF92c9e8b7c17D77aD7"
 
 async function _getStakedBalance(address) {
   const sklima = new ethers.Contract(sKlimaAddress, sKlimaABI, provider)
@@ -48,6 +49,86 @@ async function _getStakedBalance(address) {
 
 //   return formatUSD(circulatingSupply * OHM_DAI / Math.pow(10, 9))
 // }
+
+async function _getBacking() {
+  const bctContract = new ethers.Contract(bctAddress, sKlimaABI, provider)
+  const bctKlimaLP = new ethers.Contract(bctKlima, LPABI, provider)
+  const bctUsdcLP = new ethers.Contract(usdcBct, LPABI, provider)
+
+  const [
+    directBCT,
+    bctKlimaLPBalance, 
+    bctKlimaLPTotalSupply, 
+    bctKlimaReserves, 
+    bctUsdcLPBalance, 
+    bctUsdcLPTotalSupply, 
+    bctUsdcReserves
+  ] = await Promise.all([
+    bctContract.balanceOf(treasuryAddress),
+    bctKlimaLP.balanceOf(treasuryAddress),
+    bctKlimaLP.totalSupply(),
+    bctKlimaLP.getReserves(),
+    bctUsdcLP.balanceOf(treasuryAddress),
+    bctUsdcLP.totalSupply(),
+    bctUsdcLP.getReserves()
+  ])
+
+  const bctKlimaBCTReserves = bctKlimaReserves[0]
+  const bctUsdcBCTReserves = bctUsdcReserves[1]
+
+  let bctKlimaLPOwnershipFactor = bctKlimaLPBalance.div(`${10**15}`).div(bctKlimaLPTotalSupply.div(`${10**18}`))  
+  let bctUsdcLPOwnershipFactor = bctUsdcLPBalance.div(`${10**15}`).div(bctUsdcLPTotalSupply.div(`${10**18}`))  
+
+  const treasuryBCT = 
+    (directBCT
+    .add(bctKlimaBCTReserves.mul(bctKlimaLPOwnershipFactor).div(1000))
+    .add(bctUsdcBCTReserves.mul(bctUsdcLPOwnershipFactor).div(1000))).div(`${10**18}`)
+    
+  const {USDC_BCT, USDC_KLIMA} = await getKlimaPrice()
+
+  const sKlimaContract = new ethers.Contract(sKlimaAddress, sKlimaABI, provider);
+  const excess = await sKlimaContract.balanceOf(stakingAddress)
+  const totalSupply = await sKlimaContract.totalSupply()
+  const circ = (totalSupply - excess) / (10e8)
+
+  // console.log(treasuryBCT.toNumber() * (USDC_BCT), (bctUsdcBCTReserves.div(10e18).toNumber()), (bctKlimaBCTReserves[1].div(10e9).toNumber() * USDC_KLIMA))
+
+  const treasuryAssetsValue = treasuryBCT.toNumber() * (USDC_BCT) + (bctUsdcReserves[0].div(`${10e5}`).toNumber()) + (bctKlimaReserves[1].div(`${10e8}`).toNumber()) * USDC_KLIMA
+  const treasuryBCTMarketValue = Math.round(treasuryBCT.toNumber() * USDC_BCT, 2)
+  const bctPerCirculatingKlima = Math.round(treasuryBCT.toNumber() / circ * 100) / 100
+  const bctPerCirculatingKlimaMV = Math.round(bctPerCirculatingKlima * USDC_BCT * 100) / 100
+  const marketValueBackingPerCircKlima = Math.round(treasuryAssetsValue / circ * 100) / 100
+
+  return {
+    USDC_BCT,
+    treasuryBCT,
+    treasuryBCTMarketValue,
+    circulatingKlima: circ,
+    bctPerCirculatingKlima,
+    bctPerCirculatingKlimaMV,
+    marketValueBackingPerCircKlima
+  }
+
+}
+
+async function getBacking() {
+  const {USDC_BCT, treasuryBCT, treasuryBCTMarketValue, circulatingKlima, bctPerCirculatingKlima, bctPerCirculatingKlimaMV, marketValueBackingPerCircKlima} = await _getBacking()
+  return {
+    USDC_BCT: `$${Math.round(USDC_BCT*100)/100}`,
+    treasuryBCT: ethers.utils.commify(treasuryBCT),
+    treasuryBCTMarketValue: `$${ethers.utils.commify(treasuryBCTMarketValue)}`,
+    circulatingKlima: ethers.utils.commify(Math.round(circulatingKlima * 100)/100),
+    bctPerCirculatingKlima: bctPerCirculatingKlima,
+    bctPerCirculatingKlimaMV: `$${bctPerCirculatingKlimaMV}`,
+    marketValueBackingPerCircKlima: `$${marketValueBackingPerCircKlima}`
+  }
+}
+
+async function getBackingOfBalance(address) {
+  const {marketValueBackingPerCircKlima} = await _getBacking()
+  const balance = await _getStakedBalance(address)
+  return `$${ethers.utils.commify(Math.round(marketValueBackingPerCircKlima * balance * 100) / 100)}`
+}
 
 async function getStakingStats(address) {
   const stakingContract = new ethers.Contract(stakingAddress, stakingABI, provider);
@@ -237,7 +318,9 @@ module.exports = {
   daysToGetKlimaBalance,
   daysToGetReward,
   daysToGetUSDValue,
-  daysToEarnUSD
+  daysToEarnUSD,
+  getBacking,
+  getBackingOfBalance
   // marketCap
 }
 
